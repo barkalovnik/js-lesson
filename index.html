@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JS Episodes Pro • Coffee Editorial Redesign</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="theme-espresso">
+
+  <div class="app-container">
+    <!-- Sidebar: Episodes List & Global Progress -->
+    <aside class="sidebar">
+      <div class="brand-section">
+        <span class="brand-tag">Architectural Edition</span>
+        <div class="brand-title">
+          <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+          JS Episodes
+        </div>
+        <div class="brand-subtitle">9 ЭПИЗОДОВ • 54 УРОВНЯ (НЮАНСЫ &amp; DOM)</div>
+
+        <div class="sidebar-progress">
+          <div class="progress-header">
+            <span>Прогресс курса</span>
+            <span class="progress-val" id="global-progress-val">0 / 54 (0%)</span>
+          </div>
+          <div class="progress-rail">
+            <div class="progress-bar-fill" id="global-progress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Episodes Navigation Menu -->
+      <nav class="episodes-menu" id="episodes-menu-list">
+        <!-- Rendered by app.js -->
+      </nav>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="workspace-main">
+      <header class="workspace-header-bar">
+        <div class="ep-headline-row">
+          <h1 class="ep-headline" id="ep-headline-text">Загрузка темы...</h1>
+          <div style="font-family: var(--font-mono, monospace); font-size: 0.72rem; color: var(--accent); display: flex; align-items: center; gap: 0.4rem; font-weight: 700;">
+            <span style="display:inline-block; width:6px; height:6px; background:var(--accent);"></span>
+            DOM RUNNER • SANDBOX 2.5
+          </div>
+        </div>
+        <div class="ep-desc-text" id="ep-desc-text">Описание эпизода...</div>
+        
+        <!-- 6 Sharp Level Tabs -->
+        <div class="level-tabs-row" id="level-tabs-row">
+          <!-- Rendered by app.js -->
+        </div>
+      </header>
+
+      <!-- Level Content Viewport -->
+      <section id="level-viewport-container" style="flex:1; overflow-y:auto; display:flex; flex-direction:column;">
+        <!-- Level stage rendered by app.js -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Footer with Multi-Theme Selector -->
+  <footer class="app-footer">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <span>JS COFFEE RUNNER</span>
+      <span style="color: var(--border-strong);">|</span>
+      <span>ZERO RADIUS EDITORIAL</span>
+    </div>
+
+    <div class="footer-theme-selector">
+      <label for="theme-select">Тема оформления:</label>
+      <select id="theme-select">
+        <option value="theme-espresso">☕ Espresso &amp; Cream (Темный кофе)</option>
+        <option value="theme-cappuccino">🥛 Cappuccino &amp; Milk (Светлый кофе)</option>
+        <option value="theme-matcha">🍵 Matcha &amp; Bamboo (Матча)</option>
+        <option value="theme-noir">🖋️ Editorial Noir (Монохром)</option>
+      </select>
+    </div>
+  </footer>
+
+  <script src="episodes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
