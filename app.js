@@ -1,596 +1,478 @@
-// ==========================================================================
-// COFFEE & EDITORIAL DESIGN SYSTEM: APPLICATION ENGINE
-// Features: Real-time syntax highlighting overlay, theme switcher (4 palettes),
-// custom SVG icon engine, strict sharp geometry, live sandboxed DOM.
-// ==========================================================================
+// ========================================================
+// ЛОГИКА ТРЕНАЖЁРА С ЭПИЗОДАМИ И УРОВНЯМИ
+// ========================================================
 
-const COFFEE_STORAGE_KEY = "js_episodes_coffee_v1";
-const THEME_STORAGE_KEY = "js_episodes_theme_choice";
+const STORAGE_KEY = "js_episodes_trainer_v1";
 
-// Minimal SVG Icon Library
-const ICONS = {
-  prompt: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>`,
-  vars: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><path d="M8 12h8M12 8v8"/></svg>`,
-  conditions: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M6 3v18M18 9l-6 6-6-6"/></svg>`,
-  while: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`,
-  for: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
-  arrays: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M8 4H4v16h4M16 4h4v16h-4"/></svg>`,
-  functions: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M9 17c2 0 3-1 3-3V7c0-2-1-3-3-3M6 11h8M14 7l4 10M18 7l-4 10"/></svg>`,
-  objects: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><path d="M7 4c-2 0-3 1-3 3v2c0 2-1 3-3 3 2 0 3 1 3 3v2c0 2 1 3 3 3M17 4c2 0 3 1 3 3v2c0 2 1 3 3 3-2 0-3 1-3 3v2c0 2-1 3-3 3"/></svg>`,
-  classes: `<svg class="ep-icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
-  check: `<svg style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
-  bulb: `<svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5V17h8v-2.5c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7z"/></svg>`,
-  terminal: `<svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
-  cup: `<svg style="width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2;" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>`
-};
+const SUCCESS_JOKES = [
+  "Красава! Даже линтер пустил скупую слезу счастья 🥲",
+  "Код чистый, сервер не упал! Заслуженный плюс к карме 🚀",
+  "Твой тимлид молча закрыл пуллреквест и поставил аппрув 🎉",
+  "Кот накормлен, баги побеждены! Беги за кофе ☕",
+  "Сеньор-помидор ставит 10/10 🍅",
+  "Работает как швейцарские часы с неоновой подсветкой ✨⏱️"
+];
 
-const EPISODE_ICON_MAP = {
-  1: ICONS.prompt,
-  2: ICONS.vars,
-  3: ICONS.conditions,
-  4: ICONS.while,
-  5: ICONS.for,
-  6: ICONS.arrays,
-  7: ICONS.functions,
-  8: ICONS.objects,
-  9: ICONS.classes
-};
+const ERROR_JOKES = [
+  "Ой-вэй! Что-то пошло не по плану... Почитай ошибку ниже! 💥",
+  "Где-то в мире грустит один кот. Попробуй исправить! 😿",
+  "Код споткнулся о суровую реальность. Подсказка уже ждёт тебя! 🧐",
+  "Почти получилось! Ещё чуть-чуть дотянуть логику 🛠️"
+];
 
-// Stripping emojis from titles for strict editorial look
-function stripEmojis(str) {
-  return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
-}
-
-// State
-let curEpId = 1;
-let curLvlNum = 1;
+let currentEpisodeId = 1;
+let currentLevelNum = 1; // 1 to 6
 let trainerState = {
-  solved: {},
-  code: {}
+  solved: {}, // { [levelId]: true }
+  userCode: {} // { [levelId]: "..." }
 };
 
-// --------------------------------------------------------------------------
-// SYNTAX HIGHLIGHTING ENGINE (Fast Regex Tokenizer)
-// --------------------------------------------------------------------------
-function highlightCode(raw) {
-  let text = raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // String literals: "...", '...', `...`
-  text = text.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, '<span class="hl-str">$&</span>');
-
-  // Comments: // ...
-  text = text.replace(/(\/\/[^\n]*)/g, '<span class="hl-comm">$&</span>');
-
-  // Keywords
-  const keywords = /\b(function|return|class|extends|super|new|const|let|var|if|else|switch|case|default|break|continue|while|do|for|of|in|throw|try|catch|typeof|instanceof)\b/g;
-  text = text.replace(keywords, '<span class="hl-kw">$&</span>');
-
-  // DOM APIs
-  const domApis = /\b(document|window|getElementById|querySelector|querySelectorAll|createElement|appendChild|removeChild|remove|textContent|innerHTML|style|classList|add|toggle|contains|addEventListener|onclick|value)\b/g;
-  text = text.replace(domApis, '<span class="hl-dom">$&</span>');
-
-  // Numbers
-  text = text.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="hl-num">$&</span>');
-
-  return text;
-}
-
-// --------------------------------------------------------------------------
-// THEME CONTROLLER
-// --------------------------------------------------------------------------
-function initTheme() {
-  const saved = localStorage.getItem(THEME_STORAGE_KEY) || "theme-espresso";
-  document.body.setAttribute("data-theme", saved);
-  const selector = document.getElementById("theme-select");
-  if (selector) selector.value = saved;
-}
-
-function switchTheme(themeName) {
-  document.body.setAttribute("data-theme", themeName);
-  localStorage.setItem(THEME_STORAGE_KEY, themeName);
-}
-
-// --------------------------------------------------------------------------
-// STORAGE
-// --------------------------------------------------------------------------
-function loadState() {
+// LocalStorage
+function loadTrainerState() {
   try {
-    const raw = localStorage.getItem(COFFEE_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) trainerState = JSON.parse(raw);
   } catch (e) {
     console.warn("Storage load error", e);
   }
 }
 
-function saveState() {
+function saveTrainerState() {
   try {
-    localStorage.setItem(COFFEE_STORAGE_KEY, JSON.stringify(trainerState));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trainerState));
   } catch (e) {
     console.warn("Storage save error", e);
   }
 }
 
-// --------------------------------------------------------------------------
-// INITIALIZATION
-// --------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
-  initTheme();
-  loadState();
-  initSidebar();
+  loadTrainerState();
+  initEpisodeSidebar();
   selectEpisode(1, 1);
-  updateOverallProgress();
-
-  const themeSelector = document.getElementById("theme-select");
-  if (themeSelector) {
-    themeSelector.addEventListener("change", (e) => switchTheme(e.target.value));
-  }
+  updateTotalProgress();
 });
 
-// --------------------------------------------------------------------------
-// SIDEBAR RENDERER
-// --------------------------------------------------------------------------
-function initSidebar() {
-  const menu = document.getElementById("episodes-menu-list");
-  menu.innerHTML = "";
+// Инициализация боковой панели эпизодов
+function initEpisodeSidebar() {
+  const container = document.getElementById("episode-list");
+  container.innerHTML = "";
 
   EPISODES.forEach(ep => {
     const solvedCount = ep.levels.filter(lvl => trainerState.solved[lvl.id]).length;
     const isCompleted = solvedCount === ep.levels.length;
 
     const item = document.createElement("div");
-    item.className = `ep-nav-item ${ep.id === curEpId ? "active" : ""}`;
-    item.id = `ep-nav-${ep.id}`;
+    item.className = `episode-item ${ep.id === currentEpisodeId ? "active" : ""}`;
+    item.id = `sidebar-ep-${ep.id}`;
     item.onclick = () => selectEpisode(ep.id, 1);
 
-    const iconSvg = EPISODE_ICON_MAP[ep.id] || ICONS.prompt;
-    const cleanName = stripEmojis(ep.shortName);
-
     item.innerHTML = `
-      <div class="ep-info-wrap">
-        ${iconSvg}
-        <span class="ep-label">${cleanName}</span>
+      <div class="episode-item-info">
+        <span class="episode-icon">${ep.icon}</span>
+        <span class="episode-name">${ep.shortName}</span>
       </div>
-      <span class="ep-fraction ${isCompleted ? 'all-done' : ''}" id="fraction-${ep.id}">
+      <span class="episode-pill ${isCompleted ? 'completed' : ''}" id="ep-pill-${ep.id}">
         ${solvedCount}/${ep.levels.length}
       </span>
     `;
 
-    menu.appendChild(item);
+    container.appendChild(item);
   });
 }
 
+// Выбор эпизода и уровня
 function selectEpisode(epId, lvlNum = 1) {
-  curEpId = epId;
-  curLvlNum = lvlNum;
+  currentEpisodeId = epId;
+  currentLevelNum = lvlNum;
 
-  document.querySelectorAll(".ep-nav-item").forEach(el => el.classList.remove("active"));
-  const activeNavItem = document.getElementById(`ep-nav-${epId}`);
-  if (activeNavItem) activeNavItem.classList.add("active");
+  // Подсветка в сайдбаре
+  document.querySelectorAll(".episode-item").forEach(el => el.classList.remove("active"));
+  const activeSidebarItem = document.getElementById(`sidebar-ep-${epId}`);
+  if (activeSidebarItem) activeSidebarItem.classList.add("active");
 
   const ep = EPISODES.find(e => e.id === epId);
   if (!ep) return;
 
-  const iconSvg = EPISODE_ICON_MAP[ep.id] || ICONS.prompt;
-  document.getElementById("ep-headline-text").innerHTML = `${iconSvg} ${stripEmojis(ep.title)}`;
-  document.getElementById("ep-desc-text").textContent = stripEmojis(ep.desc);
+  // Заголовок эпизода
+  document.getElementById("ep-title").innerHTML = `${ep.icon} ${ep.title}`;
+  document.getElementById("ep-desc").textContent = ep.desc;
 
   renderLevelTabs(ep);
-  loadLevel(ep, curLvlNum);
+  loadLevel(ep, currentLevelNum);
 }
 
-// --------------------------------------------------------------------------
-// 6 LEVEL TABS
-// --------------------------------------------------------------------------
+// Рендер 6 табов уровней (3 No-Code + 3 Code with DOM)
 function renderLevelTabs(ep) {
-  const tabsRow = document.getElementById("level-tabs-row");
-  tabsRow.innerHTML = "";
+  const tabsContainer = document.getElementById("level-tabs");
+  tabsContainer.innerHTML = "";
 
   ep.levels.forEach(lvl => {
-    const isAct = lvl.num === curLvlNum;
+    const isAct = lvl.num === currentLevelNum;
     const isSolved = trainerState.solved[lvl.id];
     const isNoCode = lvl.type === "nocode";
 
     const btn = document.createElement("button");
-    btn.className = `level-tab-sharp ${isAct ? 'active' : ''} ${isSolved ? 'solved' : ''}`;
+    btn.className = `level-tab-btn ${isAct ? 'active' : ''} ${isSolved ? 'solved' : ''}`;
+    btn.id = `lvl-tab-${lvl.num}`;
     btn.onclick = () => {
-      curLvlNum = lvl.num;
+      currentLevelNum = lvl.num;
       renderLevelTabs(ep);
       loadLevel(ep, lvl.num);
     };
 
-    const typeTag = isNoCode ? "ТЕОРИЯ" : "DOM API";
-    const checkIcon = isSolved ? ` ${ICONS.check}` : "";
-
+    const typeTag = isNoCode ? "🧠 Теория" : "💻 DOM-код";
+    const check = isSolved ? " ✓" : "";
     btn.innerHTML = `
-      <span>LVL.${lvl.num}</span>
-      <span class="level-kind-indicator">${typeTag}</span>
-      <span>${checkIcon}</span>
+      <span>Ур. ${lvl.num}</span>
+      <span class="badge-tag">${typeTag}</span>
+      <span>${check}</span>
     `;
 
-    tabsRow.appendChild(btn);
+    tabsContainer.appendChild(btn);
   });
 }
 
-// --------------------------------------------------------------------------
-// LOAD LEVEL VIEWPORT
-// --------------------------------------------------------------------------
+// Загрузка конкретного уровня
 function loadLevel(ep, lvlNum) {
   const lvl = ep.levels.find(l => l.num === lvlNum);
   if (!lvl) return;
 
-  const viewport = document.getElementById("level-viewport-container");
-  viewport.innerHTML = "";
+  const contentArea = document.getElementById("level-content-area");
+  contentArea.innerHTML = "";
 
   if (lvl.type === "nocode") {
-    renderNoCodeView(lvl, viewport);
+    renderNoCodeView(lvl, contentArea);
   } else {
-    renderCodeView(lvl, viewport);
+    renderCodeView(lvl, contentArea);
   }
 }
 
-// --------------------------------------------------------------------------
-// NO-CODE VIEW (Theory, Gotchas, Quiz, Memory Inspector)
-// --------------------------------------------------------------------------
+// ==========================================
+// РЕНДЕР NO-CODE УРОВНЯ (1 - 3)
+// ==========================================
 function renderNoCodeView(lvl, container) {
-  const stage = document.createElement("div");
-  stage.className = "nocode-stage";
+  const view = document.createElement("div");
+  view.className = "nocode-view";
 
   const isSolved = trainerState.solved[lvl.id];
-  const cleanTitle = stripEmojis(lvl.title);
 
-  stage.innerHTML = `
-    <!-- Theory Block -->
-    <div class="sharp-card">
-      <div class="card-title-serif">
-        <span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-muted);">[LVL ${lvl.num}]</span> ${cleanTitle}
-      </div>
-      <div class="theory-prose">${lvl.explanation}</div>
+  view.innerHTML = `
+    <!-- Теория и нюанс -->
+    <div class="theory-card">
+      <h3>🧠 ${lvl.title}</h3>
+      <div class="theory-body">${lvl.explanation}</div>
     </div>
 
-    <!-- Fact Callout -->
-    <div class="coffee-fact-box">
-      <div class="fact-title-label">
-        ${ICONS.bulb}
-        <span>ИНТЕРЕСНЫЙ ФАКТ / АРХИТЕКТУРА ЯЗЫКА</span>
-      </div>
-      <div class="fact-body">${lvl.fact}</div>
+    <!-- Интересный факт -->
+    <div class="fact-card">
+      <div class="fact-title">💡 Любопытный факт под капотом</div>
+      <div class="fact-text">${lvl.fact}</div>
     </div>
 
-    <!-- Interactive Challenge Station -->
-    <div class="sharp-interactive-station">
-      <div class="station-badge">КОНТРОЛЬ ПОНИМАНИЯ НЮАНСА</div>
-      <div class="station-question">${lvl.taskText}</div>
-
-      <div id="interactive-station-area"></div>
-
-      <div id="interactive-feedback-dock" style="margin-top: 1.25rem;">
-        ${isSolved ? '<div class="sharp-banner success">[СТАТУС: УСПЕШНО ЗАВЕРШЕНО] Уровень пройден.</div>' : ''}
+    <!-- Интерактивный тренажёр-симулятор без кода -->
+    <div class="interactive-simulator-card">
+      <div class="sim-header">🎮 Интерактивная проверка нюанса</div>
+      <p style="font-size: 0.9rem; margin-bottom: 1rem; color: #cbd5e1;">${lvl.taskText}</p>
+      
+      <div id="nocode-interactive-box">
+        <!-- Генерируется ниже -->
       </div>
 
-      <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <button class="btn-sharp btn-outline" onclick="stepPrevLevel()">НАЗАД</button>
-        <button class="btn-sharp btn-accent" onclick="stepNextLevel()">СЛЕДУЮЩИЙ УРОВЕНЬ</button>
+      <div id="nocode-feedback" style="margin-top: 1rem; font-size: 0.88rem;">
+        ${isSolved ? '<div class="banner success">✅ Уровень уже успешно пройден!</div>' : ''}
+      </div>
+
+      <div style="margin-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <button class="btn btn-secondary" onclick="prevLevel()">⬅️ Назад</button>
+        <button class="btn btn-primary" onclick="nextLevel()">Следующий уровень ➡️</button>
       </div>
     </div>
   `;
 
-  container.appendChild(stage);
+  container.appendChild(view);
 
-  const area = document.getElementById("interactive-station-area");
+  // Наполнение интерактива
+  const box = document.getElementById("nocode-interactive-box");
 
   if (lvl.interactiveType === "prompt_calculator") {
-    // Memory Type-Inspector
-    area.innerHTML = `
-      <div style="background:var(--bg-canvas);border:1px solid var(--border);padding:1.25rem;display:flex;flex-direction:column;gap:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-          <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-muted);">ПРЕОБРАЗОВАНИЕ ТИПОВ:</span>
-          <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;">
-            <input type="checkbox" id="unary-plus-toggle" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
-            <span style="font-family:var(--font-mono);font-size:0.82rem;font-weight:bold;color:var(--accent);">+prompt() [Унарный плюс]</span>
-          </label>
+    // Интерактивный калькулятор унарного плюса
+    box.innerHTML = `
+      <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <input type="checkbox" id="calc-unary-plus" style="width:18px; height:18px; cursor:pointer;">
+          <label for="calc-unary-plus" style="color:var(--accent); font-weight:bold; cursor:pointer;">Использовать унарный плюс: +prompt()</label>
         </div>
-
-        <div style="background:var(--bg-surface);border:1px solid var(--border);padding:0.85rem 1rem;font-family:var(--font-mono);font-size:0.9rem;display:flex;align-items:center;justify-content:space-between;">
-          <span style="color:var(--text-muted);">prompt("5") + prompt("5") =</span>
-          <span id="prompt-xray-output" style="color:var(--text-main);font-weight:bold;">[Ожидание]</span>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <span style="font-family:var(--font-mono); color:#94a3b8;">prompt("5") + prompt("5") = </span>
+          <span id="calc-res-display" style="font-family:var(--font-mono); font-size:1.2rem; font-weight:bold; color:#f8fafc;">???</span>
         </div>
-
-        <button class="btn-sharp btn-accent" style="align-self:flex-start;" onclick="execPromptXray('${lvl.id}')">
-          ВЫЧИСЛИТЬ В ПАМЯТИ
-        </button>
+        <button class="btn btn-primary" style="align-self:flex-start;" onclick="testPromptCalc('${lvl.id}')">Вычислить результат</button>
       </div>
     `;
   } else if (lvl.options) {
-    const grid = document.createElement("div");
-    grid.className = "quiz-sharp-grid";
+    // Викторина с выбором
+    const optContainer = document.createElement("div");
+    optContainer.className = "quiz-options";
 
-    lvl.options.forEach((opt, idx) => {
+    lvl.options.forEach((optText, idx) => {
       const btn = document.createElement("button");
-      btn.className = "quiz-option-sharp";
-      btn.innerHTML = `<span>${opt}</span><span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim);">[0${idx+1}]</span>`;
-      btn.onclick = () => execQuizChoice(lvl, idx, btn);
-      grid.appendChild(btn);
+      btn.className = "quiz-option-btn";
+      btn.innerHTML = optText;
+      btn.onclick = () => checkQuizAnswer(lvl, idx, btn);
+      optContainer.appendChild(btn);
     });
 
-    area.appendChild(grid);
+    box.appendChild(optContainer);
   }
 }
 
-window.execPromptXray = function(lvlId) {
-  const isPlus = document.getElementById("unary-plus-toggle").checked;
-  const out = document.getElementById("prompt-xray-output");
-  const dock = document.getElementById("interactive-feedback-dock");
+// Проверка интерактивного калькулятора prompt
+window.testPromptCalc = function(lvlId) {
+  const usePlus = document.getElementById("calc-unary-plus").checked;
+  const display = document.getElementById("calc-res-display");
+  const fb = document.getElementById("nocode-feedback");
 
-  if (isPlus) {
-    out.innerHTML = `<span style="color:var(--status-success);">10</span> <span style="font-size:0.75rem;color:var(--text-muted);">(number)</span>`;
+  if (usePlus) {
+    display.textContent = "10 (число)";
+    display.style.color = "lime";
     trainerState.solved[lvlId] = true;
-    saveState();
-    dock.innerHTML = `<div class="sharp-banner success">[ВЕРНО] Унарный плюс выполнил приведение типов к числу: 5 + 5 = 10.</div>`;
-    updateOverallProgress();
+    saveTrainerState();
+    fb.innerHTML = `<div class="banner success">🎉 Точно! +prompt("5") + +prompt("5") дало число 10! Ловушка склейки строк обезврежена.</div>`;
+    updateTotalProgress();
     updateEpisodeTabs();
   } else {
-    out.innerHTML = `<span style="color:var(--status-error);">"55"</span> <span style="font-size:0.75rem;color:var(--text-muted);">(string конкатенация)</span>`;
-    dock.innerHTML = `<div class="sharp-banner error">[ОШИБКА] prompt() возвращает строку! Без унарного плюса строки склеились в "55". Включите чекбокс.</div>`;
+    display.textContent = '"55" (строка!)';
+    display.style.color = "orange";
+    fb.innerHTML = `<div class="banner error">⚠️ Ловушка сработала! Без унарного плюса строки склеились в "55"! Включи галочку выше.</div>`;
   }
 };
 
-function execQuizChoice(lvl, chosenIdx, btnEl) {
-  const dock = document.getElementById("interactive-feedback-dock");
-  document.querySelectorAll(".quiz-option-sharp").forEach(b => b.classList.remove("correct", "wrong"));
+// Проверка викторин
+function checkQuizAnswer(lvl, selectedIdx, btnElement) {
+  const fb = document.getElementById("nocode-feedback");
+  const allBtns = document.querySelectorAll(".quiz-option-btn");
+  allBtns.forEach(b => b.classList.remove("selected", "correct", "wrong"));
 
-  if (chosenIdx === lvl.correctIndex) {
-    btnEl.classList.add("correct");
+  if (selectedIdx === lvl.correctIndex) {
+    btnElement.classList.add("correct");
     trainerState.solved[lvl.id] = true;
-    saveState();
-    dock.innerHTML = `<div class="sharp-banner success">[ВЕРНО] Ответ совпадает с архитектурным поведением движка JavaScript.</div>`;
-    updateOverallProgress();
+    saveTrainerState();
+    fb.innerHTML = `<div class="banner success">✅ Абсолютно верно! Отличная интуиция в нюансах JS!</div>`;
+    updateTotalProgress();
     updateEpisodeTabs();
   } else {
-    btnEl.classList.add("wrong");
-    dock.innerHTML = `<div class="sharp-banner error">[ОШИБКА] Неверно. Перечитайте теоретический блок выше и повторите попытку.</div>`;
+    btnElement.classList.add("wrong");
+    fb.innerHTML = `<div class="banner error">❌ Не совсем так! Перечитай блок теории выше и попробуй ещё раз.</div>`;
   }
 }
 
-// --------------------------------------------------------------------------
-// CODE VIEW (Two Columns: Spec & Workbench with Overlay Syntax Highlighting)
-// --------------------------------------------------------------------------
+// ==========================================
+// РЕНДЕР CODE С DOM УРОВНЯ (4 - 6)
+// ==========================================
 function renderCodeView(lvl, container) {
-  const split = document.createElement("div");
-  split.className = "code-split-grid";
+  const view = document.createElement("div");
+  view.className = "code-view";
 
   const isSolved = trainerState.solved[lvl.id];
-  const cleanTitle = stripEmojis(lvl.title);
-  const cleanLegend = stripEmojis(lvl.legend);
 
-  split.innerHTML = `
-    <!-- Left Column: Specification & Live DOM Stage -->
-    <div class="spec-column">
+  view.innerHTML = `
+    <!-- Левая колонка: Легенда, Задание, Виртуальный DOM -->
+    <div class="code-left-panel">
       
-      <div class="legend-sharp-box">
-        <div class="legend-sharp-label">СЮЖЕТНАЯ ЛЕГЕНДА ЗАДАНИЯ</div>
-        <div style="font-size:0.9rem;line-height:1.55;color:var(--text-main);">${cleanLegend}</div>
+      <div class="legend-box">
+        <div class="legend-badge">📖 Сюжет задания</div>
+        <div style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">${lvl.legend}</div>
       </div>
 
-      <div class="task-sharp-box">
-        <div class="task-sharp-title">ТРЕБОВАНИЯ К DOM API:</div>
-        <div style="font-size:0.9rem;line-height:1.55;color:var(--text-main);">${lvl.instruction}</div>
+      <div class="instruction-box">
+        <h3>🎯 Задание для DOM:</h3>
+        <p style="font-size: 0.88rem; line-height: 1.5; color: #f8fafc;">${lvl.instruction}</p>
       </div>
 
-      <!-- Live Virtual DOM Sandbox Window -->
-      <div class="sharp-browser-frame">
-        <div class="browser-header-sharp">
-          <div class="window-squares">
-            <div class="window-sq"></div>
-            <div class="window-sq"></div>
-            <div class="window-sq"></div>
-          </div>
-          <div class="browser-uri-sharp">
-            dom://episode-${curEpId}/level-${lvl.num}.live
-          </div>
+      <!-- Live Virtual DOM Sandbox -->
+      <div class="dom-preview-card">
+        <div class="dom-preview-header">
+          <span>🌐 Интерактивный DOM-контейнер</span>
+          <small style="color: var(--text-muted); font-size: 0.7rem;">(изменения видны вживую)</small>
         </div>
-        <div class="dom-live-arena" id="dom-live-stage">
+        <div id="dom-sandbox-container">
           ${lvl.domHtml || ''}
         </div>
       </div>
 
-      <div style="display:flex;gap:0.5rem;align-items:center;">
-        <button class="btn-sharp btn-hint-coffee" onclick="toggleHintDrawer()">
-          ${ICONS.bulb} ПОДСКАЗКА
-        </button>
+      <!-- Подсказка -->
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-hint" onclick="toggleHint()">💡 Подсказка</button>
       </div>
-      <div id="hint-drawer-content" style="display:none;background:var(--bg-surface);border:1px dashed var(--accent);padding:0.9rem;font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);">
-        ${lvl.hint}
+      <div class="hint-box" id="level-hint-box">
+        <div style="font-size: 0.85rem; color: #fde68a;">${lvl.hint}</div>
       </div>
 
     </div>
 
-    <!-- Right Column: Code Editor & Terminal Output -->
-    <div class="workbench-column">
-      
-      <div class="workbench-status">
-        <span>JAVASCRIPT / ES2024 (DOM API)</span>
-        <span>CTRL + ENTER ДЛЯ ЗАПУСКА</span>
+    <!-- Правая колонка: Редактор кода + Консоль -->
+    <div class="code-right-panel">
+      <div class="editor-header">
+        <span>JavaScript + DOM API</span>
+        <span style="font-size: 0.72rem; color: #64748b;">Ctrl + Enter для запуска • Tab: 2 пробела</span>
       </div>
 
-      <!-- Synchronized Syntax-Highlighted Code Editor -->
-      <div class="code-highlighter-wrapper">
-        <pre class="code-backdrop" aria-hidden="true"><code id="code-backdrop-content"></code></pre>
-        <textarea id="code-workbench-input" class="code-input-area" spellcheck="false"></textarea>
+      <div class="editor-wrapper">
+        <textarea id="code-input" spellcheck="false"></textarea>
       </div>
 
-      <div class="workbench-actions-bar">
-        <div style="display:flex;gap:0.5rem;">
-          <button class="btn-sharp btn-accent" onclick="runDomAssertionTest()">
-            ${ICONS.terminal} ЗАПУСТИТЬ ТЕСТЫ
-          </button>
-          <button class="btn-sharp btn-outline" onclick="resetCurrentCode()">СБРОС</button>
+      <div class="editor-footer">
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn btn-primary" onclick="runCodeTest()">🚀 Запустить и проверить код</button>
+          <button class="btn btn-secondary" onclick="resetLevelCode()">🔄 Сброс</button>
         </div>
-        <div style="display:flex;gap:0.35rem;">
-          <button class="btn-sharp btn-outline" onclick="stepPrevLevel()">ПРЕД</button>
-          <button class="btn-sharp btn-outline" onclick="stepNextLevel()">СЛЕД</button>
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn btn-secondary" onclick="prevLevel()">⬅️</button>
+          <button class="btn btn-secondary" onclick="nextLevel()">➡️</button>
         </div>
       </div>
 
-      <div class="terminal-dock">
-        <div class="terminal-title-sharp">КОНСОЛЬ ПРОВЕРКИ ТЕСТОВ DOM</div>
-        <div class="terminal-stream" id="terminal-stream-log">
-          ${isSolved ? '<div class="sharp-banner success">[СТАТУС: ТЕСТЫ УЖЕ ПРОЙДЕНЫ] Измените код для повторной проверки.</div>' : '<span style="color:var(--text-dim);font-family:var(--font-mono);">Нажмите [ЗАПУСТИТЬ ТЕСТЫ] для верификации DOM...</span>'}
+      <div class="console-panel">
+        <div class="console-title">📊 Консоль проверки и тестов</div>
+        <div class="console-output" id="code-console-out">
+          ${isSolved ? '<div class="banner success">✅ Уровень успешно решён! Можно изменить код и запустить снова.</div>' : '<span style="color:var(--text-muted)">Нажмите "Запустить и проверить код" (или Ctrl+Enter)...</span>'}
         </div>
       </div>
-
     </div>
   `;
 
-  container.appendChild(split);
+  container.appendChild(view);
 
-  const inputArea = document.getElementById("code-workbench-input");
-  const backdrop = document.getElementById("code-backdrop-content");
+  // Инициализация редактора
+  const editor = document.getElementById("code-input");
+  editor.value = trainerState.userCode[lvl.id] || lvl.starterCode;
 
-  // Load user code or starter
-  const initial = trainerState.code[lvl.id] || lvl.starterCode;
-  inputArea.value = initial;
-  backdrop.innerHTML = highlightCode(initial) + "\n";
-
-  // Sync scroll
-  inputArea.addEventListener("scroll", () => {
-    backdrop.parentElement.scrollTop = inputArea.scrollTop;
-    backdrop.parentElement.scrollLeft = inputArea.scrollLeft;
-  });
-
-  // Live syntax highlighter on input
-  inputArea.addEventListener("input", () => {
-    const val = inputArea.value;
-    backdrop.innerHTML = highlightCode(val) + "\n";
-    trainerState.code[lvl.id] = val;
-    saveState();
-  });
-
-  // Tab key & Ctrl+Enter
-  inputArea.addEventListener("keydown", (e) => {
+  // Tab и Ctrl+Enter
+  editor.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
-      runDomAssertionTest();
+      runCodeTest();
       return;
     }
     if (e.key === "Tab") {
       e.preventDefault();
-      const start = inputArea.selectionStart;
-      const end = inputArea.selectionEnd;
-      inputArea.value = inputArea.value.substring(0, start) + "  " + inputArea.value.substring(end);
-      inputArea.selectionStart = inputArea.selectionEnd = start + 2;
-      backdrop.innerHTML = highlightCode(inputArea.value) + "\n";
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      editor.value = editor.value.substring(0, start) + "  " + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = start + 2;
     }
+  });
+
+  editor.addEventListener("input", () => {
+    trainerState.userCode[lvl.id] = editor.value;
+    saveTrainerState();
   });
 }
 
-// --------------------------------------------------------------------------
-// TEST EXECUTION
-// --------------------------------------------------------------------------
-window.runDomAssertionTest = function() {
-  const ep = EPISODES.find(e => e.id === curEpId);
-  const lvl = ep.levels.find(l => l.num === curLvlNum);
+// Запуск теста кода с DOM
+window.runCodeTest = function() {
+  const ep = EPISODES.find(e => e.id === currentEpisodeId);
+  const lvl = ep.levels.find(l => l.num === currentLevelNum);
   if (!lvl || lvl.type !== "code") return;
 
-  const inputArea = document.getElementById("code-workbench-input");
-  const userCode = inputArea.value;
-  trainerState.code[lvl.id] = userCode;
-  saveState();
+  const editor = document.getElementById("code-input");
+  const userCode = editor.value;
+  trainerState.userCode[lvl.id] = userCode;
+  saveTrainerState();
 
-  const stage = document.getElementById("dom-live-stage");
-  stage.innerHTML = lvl.domHtml || "";
+  const domSandbox = document.getElementById("dom-sandbox-container");
+  // Сбрасываем HTML перед запуском
+  domSandbox.innerHTML = lvl.domHtml || "";
 
-  const stream = document.getElementById("terminal-stream-log");
+  const consoleOut = document.getElementById("code-console-out");
 
   try {
-    const resultMsg = lvl.test(userCode, stage);
+    const successMsg = lvl.test(userCode, domSandbox);
 
     trainerState.solved[lvl.id] = true;
-    saveState();
+    saveTrainerState();
 
-    stream.innerHTML = `
-      <div class="sharp-banner success">
-        [PASS] ВСЕ ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ
+    const joke = SUCCESS_JOKES[Math.floor(Math.random() * SUCCESS_JOKES.length)];
+
+    consoleOut.innerHTML = `
+      <div class="banner success">
+        🎉 ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!
+        <div style="font-size:0.8rem; font-style:italic; margin-top:0.3rem;">${joke}</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-muted);margin-top:0.35rem;">
-        ${stripEmojis(resultMsg)}
-      </div>
+      <div style="color:#cbd5e1; font-size:0.85rem;">${successMsg}</div>
     `;
 
-    updateOverallProgress();
+    updateTotalProgress();
     updateEpisodeTabs();
 
   } catch (err) {
-    stream.innerHTML = `
-      <div class="sharp-banner error">
-        [FAIL] ОШИБКА ВЫПОЛНЕНИЯ ТЕСТА DOM
+    const joke = ERROR_JOKES[Math.floor(Math.random() * ERROR_JOKES.length)];
+
+    consoleOut.innerHTML = `
+      <div class="banner error">
+        ❌ ОШИБКА В ТЕСТЕ DOM:
+        <div style="font-size:0.8rem; font-style:italic; margin-top:0.3rem;">${joke}</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:0.8rem;color:var(--status-error);margin-top:0.35rem;">
-        ${err.message}
-      </div>
+      <div style="color:#fca5a5; font-size:0.85rem;">${err.message}</div>
     `;
   }
 };
 
-window.resetCurrentCode = function() {
-  const ep = EPISODES.find(e => e.id === curEpId);
-  const lvl = ep.levels.find(l => l.num === curLvlNum);
+window.resetLevelCode = function() {
+  const ep = EPISODES.find(e => e.id === currentEpisodeId);
+  const lvl = ep.levels.find(l => l.num === currentLevelNum);
   if (!lvl) return;
-  if (confirm("Сбросить написанный код к исходному шаблону?")) {
-    const inputArea = document.getElementById("code-workbench-input");
-    const backdrop = document.getElementById("code-backdrop-content");
-    inputArea.value = lvl.starterCode;
-    backdrop.innerHTML = highlightCode(lvl.starterCode) + "\n";
-    delete trainerState.code[lvl.id];
-    saveState();
+  if (confirm("Сбросить код задания к исходному?")) {
+    document.getElementById("code-input").value = lvl.starterCode;
+    delete trainerState.userCode[lvl.id];
+    saveTrainerState();
   }
 };
 
-window.toggleHintDrawer = function() {
-  const drawer = document.getElementById("hint-drawer-content");
-  drawer.style.display = drawer.style.display === "none" ? "block" : "none";
+window.toggleHint = function() {
+  const box = document.getElementById("level-hint-box");
+  box.classList.toggle("visible");
 };
 
-window.stepNextLevel = function() {
-  if (curLvlNum < 6) {
-    selectEpisode(curEpId, curLvlNum + 1);
-  } else if (curEpId < EPISODES.length) {
-    selectEpisode(curEpId + 1, 1);
+// Навигация по уровням
+window.nextLevel = function() {
+  if (currentLevelNum < 6) {
+    selectEpisode(currentEpisodeId, currentLevelNum + 1);
+  } else if (currentEpisodeId < EPISODES.length) {
+    selectEpisode(currentEpisodeId + 1, 1);
   } else {
-    alert("Все 54 уровня тренажёра успешно завершены.");
+    alert("🏆 Поздравляем! Вы прошли все уровни тренажёра!");
   }
 };
 
-window.stepPrevLevel = function() {
-  if (curLvlNum > 1) {
-    selectEpisode(curEpId, curLvlNum - 1);
-  } else if (curEpId > 1) {
-    selectEpisode(curEpId - 1, 6);
+window.prevLevel = function() {
+  if (currentLevelNum > 1) {
+    selectEpisode(currentEpisodeId, currentLevelNum - 1);
+  } else if (currentEpisodeId > 1) {
+    selectEpisode(currentEpisodeId - 1, 6);
   }
 };
 
 function updateEpisodeTabs() {
-  const ep = EPISODES.find(e => e.id === curEpId);
+  const ep = EPISODES.find(e => e.id === currentEpisodeId);
   if (ep) {
     renderLevelTabs(ep);
-    const fraction = document.getElementById(`fraction-${ep.id}`);
-    const solved = ep.levels.filter(l => trainerState.solved[l.id]).length;
-    if (fraction) {
-      fraction.textContent = `${solved}/${ep.levels.length}`;
-      if (solved === ep.levels.length) fraction.classList.add("all-done");
+    const pill = document.getElementById(`ep-pill-${ep.id}`);
+    const solvedCount = ep.levels.filter(lvl => trainerState.solved[lvl.id]).length;
+    if (pill) {
+      pill.textContent = `${solvedCount}/${ep.levels.length}`;
+      if (solvedCount === ep.levels.length) pill.classList.add("completed");
     }
   }
 }
 
-function updateOverallProgress() {
+function updateTotalProgress() {
   const solvedCount = Object.keys(trainerState.solved).length;
-  const total = EPISODES.length * 6; // 54
-  const pct = Math.round((solvedCount / total) * 100);
+  const totalLevels = EPISODES.length * 6; // 54
+  const pct = Math.round((solvedCount / totalLevels) * 100);
 
-  const fill = document.getElementById("global-progress-fill");
-  const val = document.getElementById("global-progress-val");
-  if (fill) fill.style.width = `${pct}%`;
-  if (val) val.textContent = `${solvedCount} / ${total} (${pct}%)`;
+  const fillEl = document.getElementById("overall-progress-fill");
+  const textEl = document.getElementById("overall-progress-text");
+  if (fillEl) fillEl.style.width = `${pct}%`;
+  if (textEl) textEl.textContent = `${solvedCount} / ${totalLevels} (${pct}%)`;
 }

@@ -3,82 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JS Episodes Pro • Coffee Editorial Redesign</title>
+  <title>JS Episodes Trainer (9 Эпизодов: 54 Уровня)</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="theme-espresso">
+<body>
 
-  <div class="app-container">
-    <!-- Sidebar: Episodes List & Global Progress -->
-    <aside class="sidebar">
-      <div class="brand-section">
-        <span class="brand-tag">Architectural Edition</span>
-        <div class="brand-title">
-          <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-          JS Episodes
+  <!-- Сайдбар эпизодов -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>⚡ JS Episodes Quest</h1>
+      <p>9 Эпизодов • 54 Уровня (Теория + DOM-код)</p>
+
+      <div class="overall-progress-card">
+        <div class="progress-info">
+          <span>Общий прогресс:</span>
+          <span id="overall-progress-text">0 / 54 (0%)</span>
         </div>
-        <div class="brand-subtitle">9 ЭПИЗОДОВ • 54 УРОВНЯ (НЮАНСЫ &amp; DOM)</div>
-
-        <div class="sidebar-progress">
-          <div class="progress-header">
-            <span>Прогресс курса</span>
-            <span class="progress-val" id="global-progress-val">0 / 54 (0%)</span>
-          </div>
-          <div class="progress-rail">
-            <div class="progress-bar-fill" id="global-progress-fill"></div>
-          </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="overall-progress-fill"></div>
         </div>
       </div>
-
-      <!-- Episodes Navigation Menu -->
-      <nav class="episodes-menu" id="episodes-menu-list">
-        <!-- Rendered by app.js -->
-      </nav>
-    </aside>
-
-    <!-- Main Workspace -->
-    <main class="workspace-main">
-      <header class="workspace-header-bar">
-        <div class="ep-headline-row">
-          <h1 class="ep-headline" id="ep-headline-text">Загрузка темы...</h1>
-          <div style="font-family: var(--font-mono, monospace); font-size: 0.72rem; color: var(--accent); display: flex; align-items: center; gap: 0.4rem; font-weight: 700;">
-            <span style="display:inline-block; width:6px; height:6px; background:var(--accent);"></span>
-            DOM RUNNER • SANDBOX 2.5
-          </div>
-        </div>
-        <div class="ep-desc-text" id="ep-desc-text">Описание эпизода...</div>
-        
-        <!-- 6 Sharp Level Tabs -->
-        <div class="level-tabs-row" id="level-tabs-row">
-          <!-- Rendered by app.js -->
-        </div>
-      </header>
-
-      <!-- Level Content Viewport -->
-      <section id="level-viewport-container" style="flex:1; overflow-y:auto; display:flex; flex-direction:column;">
-        <!-- Level stage rendered by app.js -->
-      </section>
-    </main>
-  </div>
-
-  <!-- Footer with Multi-Theme Selector -->
-  <footer class="app-footer">
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <span>JS COFFEE RUNNER</span>
-      <span style="color: var(--border-strong);">|</span>
-      <span>ZERO RADIUS EDITORIAL</span>
     </div>
 
-    <div class="footer-theme-selector">
-      <label for="theme-select">Тема оформления:</label>
-      <select id="theme-select">
-        <option value="theme-espresso">☕ Espresso &amp; Cream (Темный кофе)</option>
-        <option value="theme-cappuccino">🥛 Cappuccino &amp; Milk (Светлый кофе)</option>
-        <option value="theme-matcha">🍵 Matcha &amp; Bamboo (Матча)</option>
-        <option value="theme-noir">🖋️ Editorial Noir (Монохром)</option>
-      </select>
+    <!-- Список 9 эпизодов -->
+    <div class="episode-list" id="episode-list">
+      <!-- Заполняется из app.js -->
     </div>
-  </footer>
+  </aside>
+
+  <!-- Основная область текущего эпизода -->
+  <main class="workspace">
+    
+    <!-- Шапка выбранного эпизода -->
+    <header class="episode-nav-header">
+      <div class="episode-title-row">
+        <h2 id="ep-title">Загрузка эпизода...</h2>
+      </div>
+      <div class="episode-desc" id="ep-desc">Описание темы...</div>
+
+      <!-- 6 Табов уровней: 3 No-Code + 3 Code with DOM -->
+      <div class="level-tabs" id="level-tabs">
+        <!-- Генерируется динамически -->
+      </div>
+    </header>
+
+    <!-- Контент активного уровня (No-Code или Code с DOM) -->
+    <section class="level-content-area" id="level-content-area">
+      <!-- Генерируется из app.js -->
+    </section>
+
+  </main>
 
   <script src="episodes.js"></script>
   <script src="app.js"></script>
